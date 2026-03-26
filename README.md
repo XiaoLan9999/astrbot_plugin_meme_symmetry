@@ -1,6 +1,6 @@
 # astrbot_plugin_meme_symmetry
 
-一个给 AstrBot 用的图片 meme 插件。
+一个简单的给 AstrBot 用的图片 meme 插件。
 
 ## 功能
 
@@ -58,15 +58,3 @@ AstrBot/data/plugins/astrbot_plugin_meme_symmetry
 ```text
 Pillow>=10.0.0
 ```
-
-## 备注
-
-这个插件故意把“取图逻辑”和“图像处理逻辑”拆开了，后续你要继续加：
-
-- `/翻转 横`
-- `/翻转 竖`
-- `/灰度`
-- `/反相`
-- `/旋转 90`
-
-会比较方便。
