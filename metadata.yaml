@@ -1,0 +1,10 @@
+name: astrbot_plugin_meme_symmetry
+display_name: Meme 对称
+desc: 引用或直接读取图片，生成左右对称 meme 图，支持静态图和 GIF。
+version: v1.0.0
+author: XiaoLan
+repo: ""
+social_link: ""
+support_platforms:
+  - aiocqhttp
+astrbot_version: ">=4.16,<5"
