@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-import os
+import tempfile
 import uuid
 from pathlib import Path
 from typing import Iterable, Optional
@@ -10,6 +10,13 @@ from PIL import Image, ImageOps, ImageSequence
 
 from astrbot.api.event import AstrMessageEvent, filter
 from astrbot.api.star import Context, Star
+
+try:
+    from astrbot.api import logger  # type: ignore
+except Exception:  # pragma: no cover
+    import logging
+
+    logger = logging.getLogger(__name__)
 
 try:
     import astrbot.api.message_components as Comp
@@ -22,7 +29,7 @@ class MemeSymmetryPlugin(Star):
 
     def __init__(self, context: Context):
         super().__init__(context)
-        self.temp_root = Path("data/temp")
+        self.temp_root = Path(tempfile.gettempdir()) / "astrbot_plugin_meme_symmetry"
         self.temp_root.mkdir(parents=True, exist_ok=True)
 
     @filter.command("对称")
@@ -49,24 +56,18 @@ class MemeSymmetryPlugin(Star):
             yield event.chain_result([Comp.Image.fromFileSystem(str(out_path))])
             event.stop_event()
 
-            # 延时删除临时文件，避免协议端还没来得及读取
-            asyncio.create_task(self._cleanup_later(src_path))
+            # 这里只清理插件自己创建的输出文件，不碰上游框架提供的源文件。
             asyncio.create_task(self._cleanup_later(out_path))
 
         except Exception as e:
+            logger.exception("astrbot_plugin_meme_symmetry failed: %s", e)
             yield event.plain_result(f"生成失败：{e}")
             event.stop_event()
 
     async def _extract_target_image(self, event: AstrMessageEvent) -> Optional[Path]:
         chain = list(getattr(event.message_obj, "message", None) or [])
 
-        # 1) 优先读取当前消息直接附带的图片
-        for comp in chain:
-            path = await self._image_component_to_path(comp)
-            if path:
-                return path
-
-        # 2) 再读取引用消息中的图片
+        # 1) 优先读取引用消息中的图片
         for comp in chain:
             if not self._is_reply_component(comp):
                 continue
@@ -75,6 +76,12 @@ class MemeSymmetryPlugin(Star):
                 path = await self._image_component_to_path(reply_comp)
                 if path:
                     return path
+
+        # 2) 再读取当前消息直接附带的图片
+        for comp in chain:
+            path = await self._image_component_to_path(comp)
+            if path:
+                return path
 
         return None
 
@@ -95,8 +102,6 @@ class MemeSymmetryPlugin(Star):
         - reply.chain
         - reply.message
         - reply.source.message_chain
-
-        这里都兼容一下，避免后续你移植别的图处理时还要重复写。
         """
         direct_chain = getattr(reply_comp, "chain", None)
         if isinstance(direct_chain, list):
@@ -120,7 +125,6 @@ class MemeSymmetryPlugin(Star):
         if not self._is_image_component(comp):
             return None
 
-        # 官方/社区插件里常用的方式
         convert = getattr(comp, "convert_to_file_path", None)
         if callable(convert):
             result = convert()
@@ -131,7 +135,6 @@ class MemeSymmetryPlugin(Star):
                 if p.exists():
                     return p
 
-        # 兜底字段
         for key in ("file", "path", "url"):
             value = getattr(comp, key, None)
             if not value:
@@ -156,7 +159,8 @@ class MemeSymmetryPlugin(Star):
 
     def _render(self, src_path: Path, side: str) -> Path:
         with Image.open(src_path) as im:
-            is_animated = bool(getattr(im, "is_animated", False) and getattr(im, "n_frames", 1) > 1)
+            n_frames = int(getattr(im, "n_frames", 1) or 1)
+            is_animated = bool(getattr(im, "is_animated", False) and n_frames > 1)
 
         ext = ".gif" if is_animated else ".png"
         out_path = self.temp_root / f"astrbot_plugin_meme_symmetry_{uuid.uuid4().hex}{ext}"
@@ -225,4 +229,4 @@ class MemeSymmetryPlugin(Star):
         try:
             path.unlink(missing_ok=True)
         except Exception:
-            pass
+            logger.exception("astrbot_plugin_meme_symmetry cleanup failed: %s", path)

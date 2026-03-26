@@ -1,9 +1,9 @@
 name: astrbot_plugin_meme_symmetry
 display_name: Meme 对称
-desc: 一个简单的 通过引用回复将 静图/动图 进行对称镜像以打到抽象的目的 （？强强？）
+desc: 引用或直接读取图片，生成左右对称 meme 图，支持静态图和 GIF。
 version: v1.0.0
-author: XiaoLan9999
-repo: "https://github.com/XiaoLan9999/astrbot_plugin_meme_symmetry"
+author: XiaoLan
+repo: ""
 social_link: ""
 support_platforms:
   - aiocqhttp
